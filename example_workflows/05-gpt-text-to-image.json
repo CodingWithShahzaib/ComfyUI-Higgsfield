@@ -1,0 +1,73 @@
+{
+  "last_node_id": 1,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "HFImageGenerate",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        390,
+        390
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "references",
+          "type": "HF_REFERENCES",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 0
+        },
+        {
+          "name": "saved_paths",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 1
+        },
+        {
+          "name": "request_id",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HFImageGenerate"
+      },
+      "widgets_values": [
+        "GPT Image 2.5 Sunburst (Higgsfield)",
+        "A tiny ceramic robot tending a rooftop garden at sunrise",
+        "2k",
+        "1:1",
+        "high",
+        "robot-take-1",
+        1800
+      ]
+    }
+  ],
+  "links": [],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        30,
+        50
+      ]
+    }
+  },
+  "version": 0.4
+}

@@ -1,0 +1,75 @@
+{
+  "last_node_id": 1,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "HFVideoGenerate",
+      "pos": [
+        0,
+        0
+      ],
+      "size": [
+        390,
+        390
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "references",
+          "type": "HF_REFERENCES",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "links": [],
+          "slot_index": 0
+        },
+        {
+          "name": "saved_path",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 1
+        },
+        {
+          "name": "request_id",
+          "type": "STRING",
+          "links": [],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "HFVideoGenerate"
+      },
+      "widgets_values": [
+        "Seedance 2.5 - Text to Video",
+        "A cinematic tracking shot along a sunlit coastal road",
+        5,
+        "720p",
+        "16:9",
+        true,
+        "mp4",
+        "coastal-take-1",
+        1800
+      ]
+    }
+  ],
+  "links": [],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.8,
+      "offset": [
+        30,
+        50
+      ]
+    }
+  },
+  "version": 0.4
+}

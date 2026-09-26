@@ -1,0 +1,22 @@
+[project]
+name = "comfyui-higgsfield"
+version = "0.1.1"
+description = "Higgsfield API nodes for ComfyUI — image, Seedance video, and advanced endpoints. Maintained for The AI Brief (based on w0ver/Sherif Oneway)."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["requests>=2.31,<3"]
+authors = [
+  { name = "Shahzaib Rehman" },
+  { name = "Sherif Oneway" },
+]
+
+[project.urls]
+Repository = "https://github.com/CodingWithShahzaib/ComfyUI-Higgsfield"
+Documentation = "https://github.com/CodingWithShahzaib/ComfyUI-Higgsfield#readme"
+Issues = "https://github.com/CodingWithShahzaib/ComfyUI-Higgsfield/issues"
+Homepage = "https://www.youtube.com/@theaibriefyt20"
+Upstream = "https://github.com/w0ver/Higgsfield-api-comfyui-nodes"
+
+[tool.comfy]
+PublisherId = "codingwithshahzaib"
+DisplayName = "ComfyUI-Higgsfield (The AI Brief)"
