@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-higgsfield"
-version = "0.1.1"
-description = "Higgsfield API nodes for ComfyUI — image, Seedance video, and advanced endpoints. Maintained for The AI Brief (based on w0ver/Sherif Oneway)."
+version = "0.2.0"
+description = "Higgsfield API nodes for ComfyUI — image, Seedance, MiniMax H3, Wan 3.0, and advanced endpoints. Maintained for The AI Brief (based on w0ver/Sherif Oneway)."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = ["requests>=2.31,<3"]

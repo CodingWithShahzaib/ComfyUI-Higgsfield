@@ -18,8 +18,10 @@ from server import PromptServer
 from .hf.client import Client, endpoint
 from .hf.config import credentials
 from .hf.jobs import Jobs, run, resume
-from .hf.models import (IMAGE_MODELS, VIDEO_MODELS, IMAGE_RATIOS, RATIOS,
-                        image_input, video_input, attach_references, controls)
+from .hf.models import (IMAGE_MODELS, VIDEO_MODELS, MINIMAX_H3_MODELS, WAN30_MODELS,
+                        IMAGE_RATIOS, RATIOS, H3_RATIOS, WAN_RATIOS,
+                        image_input, video_input, minimax_h3_input, wan30_input,
+                        attach_references, controls)
 
 log = logging.getLogger(__name__)
 interrupt = throw_exception_if_processing_interrupted
@@ -53,10 +55,10 @@ def progress_callback(node_id):
 def file_reference(path, kind):
     path = Path(path).resolve()
     allowed = {"image": {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp"},
-               "video": {".mp4": "video/mp4"}, "audio": {".wav": "audio/wav"}}
+               "video": {".mp4": "video/mp4"}, "audio": {".wav": "audio/wav", ".mp3": "audio/mpeg"}}
     mime = allowed.get(kind, {}).get(path.suffix.lower())
     if not mime or not path.is_file():
-        raise ValueError("Select an existing PNG/JPEG/WebP image, MP4 video, or WAV audio reference.")
+        raise ValueError("Select an existing PNG/JPEG/WebP image, MP4 video, or WAV/MP3 audio reference.")
     if path.stat().st_size > 1024 ** 3:
         raise ValueError("The local reference upload limit is 1 GiB.")
     digest = hashlib.sha256()
@@ -186,7 +188,7 @@ class ReferenceFile:
 
     @classmethod
     def INPUT_TYPES(cls):
-        return {"required": {"file_path": ("STRING", {"default": "", "tooltip": "Local PNG, JPEG, WebP, MP4, or WAV path. Uploaded only when generation runs."})},
+        return {"required": {"file_path": ("STRING", {"default": "", "tooltip": "Local PNG, JPEG, WebP, MP4, WAV, or MP3 path. Uploaded only when generation runs."})},
                 "optional": {"previous": ("HF_REFERENCES",)}}
 
     @classmethod
@@ -199,7 +201,8 @@ class ReferenceFile:
 
     def build(self, file_path, previous=None):
         path = Path(file_path.strip().strip('"'))
-        kind = "video" if path.suffix.lower() == ".mp4" else "audio" if path.suffix.lower() == ".wav" else "image"
+        suffix = path.suffix.lower()
+        kind = "video" if suffix == ".mp4" else "audio" if suffix in {".wav", ".mp3"} else "image"
         return (list(previous or []) + [file_reference(path, kind)],)
 
 
@@ -258,6 +261,75 @@ class VideoGenerate:
         refs = references or []
         payload = video_input(model, prompt, duration, resolution, aspect_ratio, generate_audio, output_format, refs)
         saved = generate(VIDEO_MODELS[model], payload, refs, generation_id, timeout_seconds, unique_id)
+        return video_result(saved)
+
+
+class VideoMinimaxH3:
+    CATEGORY = CATEGORY
+    FUNCTION = "execute"
+    RETURN_TYPES = ("VIDEO", "STRING", "STRING")
+    RETURN_NAMES = ("video", "saved_path", "request_id")
+    OUTPUT_NODE = True
+    DESCRIPTION = (
+        "MiniMax H3 via Higgsfield API (minimax/h3/*). Resolution is fixed to 2K per docs. "
+        "I2V: start (+ optional end) image. Ref2V: image and/or video refs; audio needs image or video."
+    )
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "model": (list(MINIMAX_H3_MODELS),),
+            "prompt": ("STRING", {"multiline": True}),
+            "duration": ("INT", {"default": 5, "min": 5, "max": 15}),
+            "aspect_ratio": (H3_RATIOS, {"default": "auto"}),
+            "aigc_watermark": ("BOOLEAN", {"default": False}),
+            **CONTROL_INPUTS}, "optional": {"references": ("HF_REFERENCES",)}, "hidden": {"unique_id": "UNIQUE_ID"}}
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
+
+    def execute(self, model, prompt, duration, aspect_ratio, aigc_watermark,
+                generation_id, timeout_seconds, references=None, unique_id=None):
+        refs = references or []
+        payload = minimax_h3_input(model, prompt, duration, aspect_ratio, aigc_watermark, refs)
+        saved = generate(MINIMAX_H3_MODELS[model], payload, refs, generation_id, timeout_seconds, unique_id)
+        return video_result(saved)
+
+
+class VideoWan30:
+    CATEGORY = CATEGORY
+    FUNCTION = "execute"
+    RETURN_TYPES = ("VIDEO", "STRING", "STRING")
+    RETURN_NAMES = ("video", "saved_path", "request_id")
+    OUTPUT_NODE = True
+    DESCRIPTION = (
+        "Alibaba Wan 3.0 via Higgsfield API (alibaba/wan-3.0/*). "
+        "I2V: first frame (+ optional last). Ref2V: up to 10 images / 5 videos / 5 audio. Seed 0 is omitted."
+    )
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {"required": {
+            "model": (list(WAN30_MODELS),),
+            "prompt": ("STRING", {"multiline": True}),
+            "duration": ("INT", {"default": 5, "min": 2, "max": 30}),
+            "resolution": (["1080p", "720p", "480p"],),
+            "aspect_ratio": (WAN_RATIOS, {"default": "adaptive"}),
+            "generate_audio": ("BOOLEAN", {"default": True}),
+            "enable_thinking": ("BOOLEAN", {"default": False}),
+            "seed": ("INT", {"default": 0, "min": 0, "max": 2147483647}),
+            **CONTROL_INPUTS}, "optional": {"references": ("HF_REFERENCES",)}, "hidden": {"unique_id": "UNIQUE_ID"}}
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        return float("nan")
+
+    def execute(self, model, prompt, duration, resolution, aspect_ratio, generate_audio, enable_thinking, seed,
+                generation_id, timeout_seconds, references=None, unique_id=None):
+        refs = references or []
+        payload = wan30_input(model, prompt, duration, resolution, aspect_ratio, generate_audio, enable_thinking, seed, refs)
+        saved = generate(WAN30_MODELS[model], payload, refs, generation_id, timeout_seconds, unique_id)
         return video_result(saved)
 
 
@@ -379,11 +451,14 @@ class ResultVideo:
 
 
 NODE_CLASS_MAPPINGS = {"HFImageGenerate": ImageGenerate, "HFVideoGenerate": VideoGenerate,
+                       "HFVideoMinimaxH3": VideoMinimaxH3, "HFVideoWan30": VideoWan30,
                        "HFReferenceImages": ReferenceImages, "HFReferenceFile": ReferenceFile,
                        "HFAdvancedGenerate": AdvancedGenerate, "HFResumeRequest": ResumeRequest,
                        "HFResultImages": ResultImages, "HFResultVideo": ResultVideo}
 NODE_DISPLAY_NAME_MAPPINGS = {"HFImageGenerate": "Higgsfield - Generate / Edit Image",
-                               "HFVideoGenerate": "Higgsfield - Generate Video",
+                               "HFVideoGenerate": "Higgsfield - Generate Video (Seedance)",
+                               "HFVideoMinimaxH3": "Higgsfield - MiniMax H3 Video",
+                               "HFVideoWan30": "Higgsfield - Wan 3.0 Video",
                                "HFReferenceImages": "Higgsfield - Reference Images",
                                "HFReferenceFile": "Higgsfield - Reference File",
                                "HFAdvancedGenerate": "Higgsfield - Custom Model (Advanced)",

@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from hf.client import APIError, Client, api_url, endpoint, public_url, request_status_url
 from hf.config import credentials
 from hf.jobs import Jobs, run
-from hf.models import IMAGE_MODELS, VIDEO_MODELS, attach_references, image_input, video_input
+from hf.models import (IMAGE_MODELS, VIDEO_MODELS, MINIMAX_H3_MODELS, WAN30_MODELS,
+                       attach_references, image_input, video_input, minimax_h3_input, wan30_input)
 from hf.secrets import protect
 
 
@@ -313,6 +314,44 @@ class ModelTests(unittest.TestCase):
         refs = [{"kind": kind, "url": kind} for kind in ("image", "video", "audio")]
         payload = attach_references("bytedance/seedance-2.5/reference-to-video", {}, refs, lambda r: r["url"])
         self.assertEqual(payload, {"image_urls": ["image"], "video_urls": ["video"], "audio_urls": ["audio"]})
+
+    def test_minimax_h3_text_and_image(self):
+        model = "MiniMax H3 - Text to Video"
+        payload = minimax_h3_input(model, "ocean sunset", 5, "16:9", False, [])
+        self.assertEqual(payload["resolution"], "2K")
+        self.assertEqual(MINIMAX_H3_MODELS[model], "minimax/h3/text-to-video")
+        with self.assertRaises(ValueError):
+            minimax_h3_input(model, "ocean sunset", 4, "16:9", False, [])
+        i2v = "MiniMax H3 - Image to Video"
+        refs = [{"kind": "image", "url": "start"}, {"kind": "image", "url": "end"}]
+        body = minimax_h3_input(i2v, "animate", 8, "auto", True, refs)
+        body = attach_references(MINIMAX_H3_MODELS[i2v], body, refs, lambda r: r["url"])
+        self.assertEqual(body["image_url"], "start")
+        self.assertEqual(body["end_image_url"], "end")
+        self.assertTrue(body["aigc_watermark"])
+
+    def test_minimax_h3_reference_rules(self):
+        model = "MiniMax H3 - Reference to Video"
+        with self.assertRaises(ValueError):
+            minimax_h3_input(model, "prompt", 5, "auto", False, [{"kind": "audio", "url": "a"}])
+        refs = [{"kind": "image", "url": "i"}]
+        body = attach_references(MINIMAX_H3_MODELS[model], minimax_h3_input(model, "prompt", 5, "auto", False, refs), refs, lambda r: r["url"])
+        self.assertEqual(body["image_urls"], ["i"])
+
+    def test_wan30_text_seed_and_i2v(self):
+        model = "Wan 3.0 - Text to Video"
+        payload = wan30_input(model, "waves", 5, "1080p", "adaptive", True, False, 0, [])
+        self.assertNotIn("seed", payload)
+        self.assertEqual(WAN30_MODELS[model], "alibaba/wan-3.0/text-to-video")
+        with_seed = wan30_input(model, "waves", 5, "720p", "16:9", False, True, 42, [])
+        self.assertEqual(with_seed["seed"], 42)
+        self.assertTrue(with_seed["enable_thinking"])
+        with self.assertRaises(ValueError):
+            wan30_input(model, "waves", 1, "1080p", "adaptive", True, False, 0, [])
+        i2v = "Wan 3.0 - Image to Video"
+        refs = [{"kind": "image", "url": "frame"}]
+        body = attach_references(WAN30_MODELS[i2v], wan30_input(i2v, "move", 5, "720p", "adaptive", True, False, 0, refs), refs, lambda r: r["url"])
+        self.assertEqual(body["image_url"], "frame")
 
     def test_gpt_image_refs_optional_max_16(self):
         model = next(iter(IMAGE_MODELS))

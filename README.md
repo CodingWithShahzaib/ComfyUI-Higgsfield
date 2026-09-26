@@ -1,6 +1,6 @@
 # ComfyUI-Higgsfield
 
-**Higgsfield API nodes for ComfyUI** — generate and edit images, run Seedance video, and call other Higgsfield endpoints from your graph.
+**Higgsfield API nodes for ComfyUI** — generate and edit images, run Seedance / MiniMax H3 / Wan 3.0 video, and call other Higgsfield endpoints from your graph.
 
 Maintained for **[The AI Brief](https://www.youtube.com/@theaibriefyt20)** by **Shahzaib Rehman**.
 
@@ -11,12 +11,14 @@ Maintained for **[The AI Brief](https://www.youtube.com/@theaibriefyt20)** by **
 ## Features
 
 - **Image generate / edit** — GPT Image 2.5 Sunburst and Marketing Studio Image 2.0 Alpha
-- **Video** — Seedance 2.5 (text / image / reference-to-video) and Seedance 2.0 text-to-video
-- **References** — IMAGE batches, plus local PNG/JPEG/WebP, MP4, or WAV via file path
+- **Seedance video** — Seedance 2.5 (text / image / reference-to-video) and Seedance 2.0 text-to-video
+- **MiniMax H3 video** — dedicated node for `minimax/h3` text / image / reference-to-video (2K fixed)
+- **Wan 3.0 video** — dedicated node for `alibaba/wan-3.0` text / image / reference-to-video
+- **References** — IMAGE batches, plus local PNG/JPEG/WebP, MP4, WAV, or MP3 via file path
 - **Native ComfyUI outputs** — IMAGE list + VIDEO, with saved paths and request IDs
 - **Resumable jobs** — `generation_id` avoids accidental duplicate spends; resume timed-out requests
 - **Credentials** — Windows DPAPI helper (`Configure API.bat`) or `HF_API_KEY_ID` / `HF_API_KEY_SECRET` env vars
-- **Advanced node** — any documented Higgsfield `model_id` + JSON body (Soul, Kling, MiniMax H3, etc.)
+- **Advanced node** — any documented Higgsfield `model_id` + JSON body (Kling, Soul, Genjutsu, etc.)
 - **Example workflows** — five ready graphs under `example_workflows/`
 
 ## Supported presets
@@ -29,8 +31,10 @@ Maintained for **[The AI Brief](https://www.youtube.com/@theaibriefyt20)** by **
 | Seedance 2.5 — Image to Video | Animate a start image | Start (+ optional end) image |
 | Seedance 2.5 — Reference to Video | Guided video | Images, videos, and/or audio |
 | Seedance 2.0 — Text to Video | Video from a prompt | None |
+| MiniMax H3 — Text / Image / Reference to Video | H3 via Higgsfield | I2V: 1–2 images; Ref2V: images and/or videos (+ optional audio) |
+| Wan 3.0 — Text / Image / Reference to Video | Wan via Higgsfield | I2V: 1–2 images; Ref2V: up to 10 images / 5 videos / 5 audio |
 
-These are **verified presets**, not the full Higgsfield catalog. For Soul / Kling / MiniMax H3 and other routes, use **Higgsfield - Custom Model (Advanced)**.
+These are **verified presets**, not the full Higgsfield catalog. For Kling / Soul / Genjutsu and other routes, use **Higgsfield - Custom Model (Advanced)**.
 
 ## Requirements
 
@@ -133,20 +137,40 @@ Load Image → Higgsfield - Reference Images → Higgsfield - Generate Video
 
 Choose **Seedance 2.5 - Image to Video**. First ref = start frame; optional second = end frame. Leave aspect ratio at default `16:9` for this route (ratio comes from the image).
 
-### Text → video
+### Text → video (Seedance)
 
-**Higgsfield - Generate Video** → Text to Video route → prompt → no references.
+**Higgsfield - Generate Video (Seedance)** → Text to Video route → prompt → no references.
 
 | Route | Duration | Resolutions |
 | --- | --- | --- |
 | Seedance 2.5 | 4–30 s | 480p, 720p |
 | Seedance 2.0 T2V | 4–15 s | 480p, 720p, 1080p, 4k |
 
-### Reference-to-video
+### MiniMax H3
 
-Select **Seedance 2.5 - Reference to Video**. Build a chain with **Reference Images** and/or **Reference File**, then connect to Generate Video.
+Add **Higgsfield - MiniMax H3 Video**. Docs: [text](https://docs.higgsfield.ai/docs/models/minimax-h3/text-to-video.md) · [image](https://docs.higgsfield.ai/docs/models/minimax-h3/image-to-video.md) · [reference](https://docs.higgsfield.ai/docs/models/minimax-h3/reference-to-video.md).
 
-### Other models (Soul, Kling, MiniMax H3, …)
+| Route | Duration | Resolution | Notes |
+| --- | --- | --- | --- |
+| Text to Video | 5–15 s | **2K** (fixed) | Prompt required |
+| Image to Video | 5–15 s | **2K** | Start (+ optional end); aspect follows keyframe |
+| Reference to Video | 5–15 s | **2K** | ≥1 image or video; audio cannot be alone |
+
+### Wan 3.0
+
+Add **Higgsfield - Wan 3.0 Video**. Docs: [text](https://docs.higgsfield.ai/docs/models/wan-3/text-to-video.md) · [image](https://docs.higgsfield.ai/docs/models/wan-3/image-to-video.md) · [reference](https://docs.higgsfield.ai/docs/models/wan-3/reference-to-video.md).
+
+| Route | Duration | Resolutions | Notes |
+| --- | --- | --- | --- |
+| Text to Video | 2–30 s | 480p / 720p / 1080p | Optional Deep Thinking; seed `0` is omitted |
+| Image to Video | 2–30 s | same | First frame (+ optional last) |
+| Reference to Video | 2–30 s | same | Up to 10 images / 5 videos / 5 audio |
+
+### Reference-to-video (Seedance)
+
+Select **Seedance 2.5 - Reference to Video**. Build a chain with **Reference Images** and/or **Reference File**, then connect to Generate Video (Seedance).
+
+### Other models (Kling, Soul, Genjutsu, …)
 
 Use **Higgsfield - Custom Model (Advanced)**:
 
@@ -180,9 +204,11 @@ Outputs land under `ComfyUI/output/higgsfield/<account-folder>/`.
 | Node | Purpose |
 | --- | --- |
 | Generate / Edit Image | Sunburst / Alpha |
-| Generate Video | Seedance routes |
+| Generate Video (Seedance) | Seedance 2.5 / 2.0 routes |
+| MiniMax H3 Video | `minimax/h3` T2V / I2V / Ref2V |
+| Wan 3.0 Video | `alibaba/wan-3.0` T2V / I2V / Ref2V |
 | Reference Images | IMAGE → reference chain |
-| Reference File | Local image / MP4 / WAV path |
+| Reference File | Local image / MP4 / WAV / MP3 path |
 | Custom Model (Advanced) | Arbitrary documented endpoint |
 | Resume Request | Recover a saved request |
 | Result Images / Result Video | Unpack advanced / resumed results |

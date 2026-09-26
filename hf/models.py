@@ -8,8 +8,20 @@ VIDEO_MODELS = {
     "Seedance 2.5 - Text to Video": "bytedance/seedance-2.5/text-to-video",
     "Seedance 2.0 - Text to Video": "bytedance/seedance-2.0/text-to-video",
 }
+MINIMAX_H3_MODELS = {
+    "MiniMax H3 - Text to Video": "minimax/h3/text-to-video",
+    "MiniMax H3 - Image to Video": "minimax/h3/image-to-video",
+    "MiniMax H3 - Reference to Video": "minimax/h3/reference-to-video",
+}
+WAN30_MODELS = {
+    "Wan 3.0 - Text to Video": "alibaba/wan-3.0/text-to-video",
+    "Wan 3.0 - Image to Video": "alibaba/wan-3.0/image-to-video",
+    "Wan 3.0 - Reference to Video": "alibaba/wan-3.0/reference-to-video",
+}
 RATIOS = ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9"]
 IMAGE_RATIOS = ["auto", "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9"]
+H3_RATIOS = ["auto", "adaptive", "21:9", "16:9", "4:3", "1:1", "3:4", "9:16"]
+WAN_RATIOS = ["adaptive", "16:9", "4:3", "1:1", "3:4", "9:16"]
 
 
 def choice(value, options, name):
@@ -23,6 +35,15 @@ def controls(generation_id, timeout):
         raise ValueError("generation_id must contain 1 to 200 characters.")
     if type(timeout) is not int or not 30 <= timeout <= 7200:
         raise ValueError("timeout_seconds must be between 30 and 7200.")
+
+
+def require_prompt(prompt, required=True):
+    if not isinstance(prompt, str):
+        raise ValueError("prompt must be text.")
+    text = prompt.strip()
+    if required and not text:
+        raise ValueError("Enter a video prompt.")
+    return text
 
 
 def image_input(model, prompt, resolution, aspect_ratio, quality, references):
@@ -75,6 +96,95 @@ def video_input(model, prompt, duration, resolution, aspect_ratio, generate_audi
         payload["aspect_ratio"] = aspect_ratio
     if not is20:
         payload["output_format"] = output_format
+    return payload
+
+
+def minimax_h3_input(model, prompt, duration, aspect_ratio, aigc_watermark, references):
+    """Build payload for minimax/h3/{text,image,reference}-to-video (docs.higgsfield.ai)."""
+    choice(model, MINIMAX_H3_MODELS, "model")
+    route = MINIMAX_H3_MODELS[model]
+    text = require_prompt(prompt, required=True)
+    if type(duration) is not int or not 5 <= duration <= 15:
+        raise ValueError("MiniMax H3 duration must be 5 to 15 whole seconds.")
+    choice(aspect_ratio, H3_RATIOS, "aspect_ratio")
+    if type(aigc_watermark) is not bool:
+        raise ValueError("aigc_watermark must be true or false.")
+    payload = dict(
+        prompt=text,
+        duration=duration,
+        resolution="2K",
+        aspect_ratio=aspect_ratio,
+        aigc_watermark=aigc_watermark,
+    )
+    if route.endswith("text-to-video"):
+        if references:
+            raise ValueError("Select Image to Video or Reference to Video to use references.")
+    elif route.endswith("image-to-video"):
+        if not 1 <= len(references) <= 2 or any(r["kind"] != "image" for r in references):
+            raise ValueError("Image to Video needs one start image and optionally one end image, in that order.")
+    elif route.endswith("reference-to-video"):
+        images = [r for r in references if r["kind"] == "image"]
+        videos = [r for r in references if r["kind"] == "video"]
+        audios = [r for r in references if r["kind"] == "audio"]
+        if not images and not videos:
+            raise ValueError("Reference to Video needs at least one image or video reference.")
+        if audios and not images and not videos:
+            raise ValueError("Audio references require an image or video reference.")
+        if len(images) > 9:
+            raise ValueError("MiniMax H3 accepts at most 9 reference images.")
+        if len(videos) > 3:
+            raise ValueError("MiniMax H3 accepts at most 3 reference videos.")
+        if len(audios) > 3:
+            raise ValueError("MiniMax H3 accepts at most 3 reference audio files.")
+    else:
+        raise ValueError(f"Unsupported MiniMax H3 route: {route}")
+    return payload
+
+
+def wan30_input(model, prompt, duration, resolution, aspect_ratio, generate_audio, enable_thinking, seed, references):
+    """Build payload for alibaba/wan-3.0/{text,image,reference}-to-video (docs.higgsfield.ai)."""
+    choice(model, WAN30_MODELS, "model")
+    route = WAN30_MODELS[model]
+    text = require_prompt(prompt, required=True)
+    if type(duration) is not int or not 2 <= duration <= 30:
+        raise ValueError("Wan 3.0 duration must be 2 to 30 whole seconds.")
+    choice(resolution, ["480p", "720p", "1080p"], "resolution")
+    choice(aspect_ratio, WAN_RATIOS, "aspect_ratio")
+    if type(generate_audio) is not bool:
+        raise ValueError("generate_audio must be true or false.")
+    if type(enable_thinking) is not bool:
+        raise ValueError("enable_thinking must be true or false.")
+    if type(seed) is not int or not 0 <= seed <= 2147483647:
+        raise ValueError("seed must be an integer from 0 to 2147483647.")
+    payload = dict(
+        prompt=text,
+        duration=duration,
+        resolution=resolution,
+        aspect_ratio=aspect_ratio,
+        generate_audio=generate_audio,
+        enable_thinking=enable_thinking,
+    )
+    # Docs: schema accepts seed=0, but implementation only forwards a nonzero seed.
+    if seed:
+        payload["seed"] = seed
+    if route.endswith("text-to-video"):
+        if references:
+            raise ValueError("Select Image to Video or Reference to Video to use references.")
+    elif route.endswith("image-to-video"):
+        if not 1 <= len(references) <= 2 or any(r["kind"] != "image" for r in references):
+            raise ValueError("Image to Video needs one start image and optionally one end image, in that order.")
+    elif route.endswith("reference-to-video"):
+        images = [r for r in references if r["kind"] == "image"]
+        videos = [r for r in references if r["kind"] == "video"]
+        audios = [r for r in references if r["kind"] == "audio"]
+        if len(images) > 10:
+            raise ValueError("Wan 3.0 accepts at most 10 reference images.")
+        if len(videos) > 5:
+            raise ValueError("Wan 3.0 accepts at most 5 reference videos.")
+        if len(audios) > 5:
+            raise ValueError("Wan 3.0 accepts at most 5 reference audio files.")
+    else:
+        raise ValueError(f"Unsupported Wan 3.0 route: {route}")
     return payload
 
 
